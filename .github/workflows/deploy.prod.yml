@@ -1,0 +1,88 @@
+name: Build, Publish, and Deploy Docker Image (Production)
+
+on:
+    push:
+        branches:
+            - master
+
+env:
+    REGISTRY: ghcr.io
+    ORG: ctrlaltelite-devs
+    IMAGE: embedding.worker.faculytics
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            # Deployment Started
+            - name: Deployment started notification
+              env:
+                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+                  DISCORD_USERNAME: "CaseOh"
+                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+              uses: Ilshidur/action-discord@0.4.0
+              with:
+                  args: "CHAT! CHAT! si ${{github.actor}} kay nag deploy sa Embedding Worker to PRODUCTION 🍔 Hold up hold up, tabangan nato ni siya mga dawg 🙏"
+
+            # 1️⃣ Checkout repository
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            # 2️⃣ Set up Docker Buildx
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            # 3️⃣ Log in to GHCR
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ secrets.GH_USERNAME }}
+                  password: ${{ secrets.GH_PAT }}
+
+            # 4️⃣ Build and push Docker image (with layer caching)
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                      ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE }}:latest
+                      ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE }}:${{ github.sha }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            # 5️⃣ Deploy to VPS via SSH (pull pre-built image)
+            - name: Deploy to Production VPS
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.VPS_HOST }}
+                  username: ${{ secrets.VPS_PROD_USERNAME }}
+                  key: ${{ secrets.VPS_SSH_KEY }}
+                  script: |
+                      docker login ghcr.io -u ${{ secrets.GH_USERNAME }} -p ${{ secrets.GH_PAT }}
+                      docker pull ghcr.io/ctrlaltelite-devs/embedding.worker.faculytics:latest
+                      cd ~/deployments/faculytics/embedding-worker && docker compose -f docker-compose.prod.yml up -d
+
+            # Deployment failed
+            - name: Failed deployment notification
+              if: failure()
+              env:
+                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+                  DISCORD_USERNAME: "CaseOh"
+                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+              uses: Ilshidur/action-discord@0.4.0
+              with:
+                  args: "NAH BRO NAH 💀 ang Embedding Worker deployment ni ${{github.actor}} naguba BWAHAHAHAHA what is this chat??"
+
+            # Deployment succeeded
+            - name: Successful deployment notification
+              if: success()
+              env:
+                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
+                  DISCORD_USERNAME: "CaseOh"
+                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+              uses: Ilshidur/action-discord@0.4.0
+              with:
+                  args: "WWWWW Embedding Worker deployment to Production successful ✅🍔 nice ka dawg ${{github.actor}}, that's a dub chat!!"

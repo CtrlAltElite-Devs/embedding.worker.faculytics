@@ -1,0 +1,7 @@
+services:
+  embedding-worker:
+    image: ghcr.io/ctrlaltelite-devs/embedding.worker.faculytics:latest
+    ports:
+      - "5201:5201"
+    env_file: .env
+    restart: unless-stopped
