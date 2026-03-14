@@ -20,7 +20,7 @@ jobs:
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
                   DISCORD_USERNAME: "CaseOh"
-                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+                  DISCORD_AVATAR: "https://www.famousbirthdays.com/faces/caseoh-image.jpg"
               uses: Ilshidur/action-discord@0.4.0
               with:
                   args: "CHAT! CHAT! si ${{github.actor}} kay nag deploy sa Embedding Worker to PRODUCTION 🍔 Hold up hold up, tabangan nato ni siya mga dawg 🙏"
@@ -71,7 +71,7 @@ jobs:
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
                   DISCORD_USERNAME: "CaseOh"
-                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+                  DISCORD_AVATAR: "https://www.famousbirthdays.com/faces/caseoh-image.jpg"
               uses: Ilshidur/action-discord@0.4.0
               with:
                   args: "NAH BRO NAH 💀 ang Embedding Worker deployment ni ${{github.actor}} naguba BWAHAHAHAHA what is this chat??"
@@ -82,7 +82,7 @@ jobs:
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOYMENT_WEBHOOK }}
                   DISCORD_USERNAME: "CaseOh"
-                  DISCORD_AVATAR: "https://yt3.googleusercontent.com/QL_kksdOZPCOmFsGyHMVVcGgf9fBtyMGBZSwsNfSxqLKE9z5Lmp8fCGCHMFM7JGpgW38juJPvQ=s900-c-k-c0x00ffffff-no-rj"
+                  DISCORD_AVATAR: "https://www.famousbirthdays.com/faces/caseoh-image.jpg"
               uses: Ilshidur/action-discord@0.4.0
               with:
                   args: "WWWWW Embedding Worker deployment to Production successful ✅🍔 nice ka dawg ${{github.actor}}, that's a dub chat!!"
