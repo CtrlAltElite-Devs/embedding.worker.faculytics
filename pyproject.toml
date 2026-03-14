@@ -1,0 +1,40 @@
+[project]
+name = "embedding-worker-faculytics"
+version = "0.1.0"
+description = "LaBSE embedding worker for Faculytics analysis pipeline"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "pydantic-settings>=2.0",
+    "sentence-transformers[onnx]>=3.0",
+    "numpy>=1.26",
+    "torch>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
