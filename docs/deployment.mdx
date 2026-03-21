@@ -1,0 +1,95 @@
+---
+title: Embedding Worker Deployment
+description: Docker build, runtime configuration, and production deployment guide for the embedding worker.
+---
+
+## Docker Build
+
+The Dockerfile uses a multi-stage build to minimize the final image size:
+
+### Stage 1: Builder
+
+1. Installs `uv` from the official image
+2. Syncs dependencies with `--frozen --no-dev` (no dev deps, locked versions)
+3. Downloads the LaBSE model and converts it to ONNX format
+4. **Strips PyTorch weights** (`.bin`, `.safetensors`) to save ~1.5 GB — only ONNX artifacts are kept
+
+### Stage 2: Runtime
+
+1. Copies the virtual environment, source code, and cached model from the builder
+2. Sets `PATH` to use the venv's Python
+3. Runs `uvicorn` on port 5201
+
+```bash
+# Build
+docker build -t embedding-worker .
+
+# Run
+docker run -p 5201:5201 embedding-worker
+```
+
+The model is baked into the image at build time, so the container starts without needing network access to HuggingFace.
+
+## Docker Compose
+
+For local development with the full stack:
+
+```bash
+docker compose up
+```
+
+For production-like deployment:
+
+```bash
+docker compose -f docker-compose.prod.yml up
+```
+
+## Environment Variables
+
+Override defaults by passing environment variables to the container:
+
+```bash
+docker run -p 5201:5201 \
+  -e LOG_LEVEL=DEBUG \
+  -e OPENAPI_MODE=false \
+  embedding-worker
+```
+
+See [Architecture > Configuration](/docs/embedding-worker/architecture#configuration) for the full list.
+
+## Local Development
+
+```bash
+# Install dependencies
+uv sync
+
+# Run with hot reload
+uv run uvicorn src.main:app --reload --port 5201
+
+# Run tests
+uv run pytest
+
+# Lint and format
+uv run ruff check src/ tests/
+uv run ruff format src/ tests/
+```
+
+## Health Monitoring
+
+The `/health` endpoint reports model readiness:
+
+- **`200 OK`** — Model loaded, ready to serve
+- **`503 Service Unavailable`** — Model still loading or failed to load
+
+Use this for container health checks and load balancer probes:
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:5201/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+```
+
+The `start_period` should account for model loading time (~30-45s on first cold start).

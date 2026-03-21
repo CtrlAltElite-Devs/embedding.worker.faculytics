@@ -1,0 +1,132 @@
+---
+title: Embedding Worker
+description: LaBSE embedding contract — request/response schemas, error handling, and deployment.
+---
+
+**Source of Truth:** `src/modules/analysis/dto/analysis-job-message.dto.ts` (request) and `src/modules/analysis/dto/analysis-result-message.dto.ts` (response)
+
+## Endpoint
+
+`POST {EMBEDDING_WORKER_URL}/embeddings`
+
+## Request
+
+```json
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "version": "1.0",
+  "type": "embedding",
+  "text": "The professor explains concepts clearly.",
+  "metadata": {
+    "submissionId": "660e8400-e29b-41d4-a716-446655440001",
+    "facultyId": "faculty-001",
+    "versionId": "version-001"
+  },
+  "publishedAt": "2026-03-14T00:00:00.000Z"
+}
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `jobId` | string (UUID) | Yes | Unique job identifier from BullMQ |
+| `version` | string | Yes | Contract version |
+| `type` | string | Yes | Always `"embedding"` |
+| `text` | string (min 1) | Yes | Qualitative comment text to embed |
+| `metadata` | object | Yes | Provenance metadata |
+| `metadata.submissionId` | string | Yes | Source submission ID |
+| `metadata.facultyId` | string | Yes | Faculty member being evaluated |
+| `metadata.versionId` | string | Yes | Questionnaire version ID |
+| `publishedAt` | ISO datetime | Yes | When the job was published |
+
+## Response (Success)
+
+```json
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "version": "1.0",
+  "status": "completed",
+  "result": {
+    "embedding": [0.0123, -0.0456, 0.0789, "... (768 floats)"],
+    "modelName": "LaBSE"
+  },
+  "completedAt": "2026-03-14T00:01:00.000Z"
+}
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `jobId` | string | Yes | Echoed from request |
+| `version` | string | Yes | Echoed from request |
+| `status` | enum | Yes | `"completed"` or `"failed"` |
+| `result` | object | On success | Embedding output |
+| `result.embedding` | number[768] | Yes | L2-normalized 768-dimensional vector |
+| `result.modelName` | string | Yes | Model short name (e.g. `"LaBSE"`) |
+| `completedAt` | ISO datetime | Yes | Processing completion timestamp |
+
+## Error Response
+
+```json
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "version": "1.0",
+  "status": "failed",
+  "error": "Model not loaded. Call load() first.",
+  "completedAt": "2026-03-14T00:01:00.000Z"
+}
+```
+
+Domain errors (model failure, empty text) return **HTTP 200** with `status: "failed"` to prevent BullMQ retries. Only unexpected infrastructure failures return HTTP 5xx.
+
+## Simple Endpoint
+
+A lightweight endpoint is available for direct embedding without job metadata:
+
+`POST {EMBEDDING_WORKER_URL}/embed`
+
+```json
+// Request
+{ "text": "Maayo ang pagtudlo sa propesor." }
+
+// Response
+{
+  "embedding": [0.0123, -0.0456, "... (768 floats)"],
+  "modelName": "LaBSE",
+  "completedAt": "2026-03-14T00:01:00.000Z"
+}
+```
+
+This endpoint is used by internal tooling (e.g. topic modeling) and does not follow the job envelope contract.
+
+## Health Check
+
+`GET {EMBEDDING_WORKER_URL}/health`
+
+```json
+// Model loaded
+{ "status": "ok", "model": "LaBSE" }
+
+// Model not yet loaded (HTTP 503)
+{ "status": "unavailable", "model": null }
+```
+
+## Notes
+
+- Embeddings are **L2-normalized** — cosine similarity reduces to dot product
+- The 768-dim vectors are consumed downstream by the topic modeling worker for UMAP + HDBSCAN clustering
+- One embedding per job (single text), unlike sentiment/topic workers which are batch
+- The API's `EmbeddingProcessor` extracts `result.embedding` and `result.modelName` from the response
+
+## Deployment
+
+- **Platform:** CPU (no GPU required — ONNX backend)
+- **Model:** `sentence-transformers/LaBSE` with ONNX runtime
+- **Docker:** Multi-stage build, PyTorch weights stripped (ONNX-only)
+- **Port:** 5201
+
+## Versioning
+
+The `result.modelName` field identifies the model used. The API stores this for provenance tracking alongside the embedding vector.
